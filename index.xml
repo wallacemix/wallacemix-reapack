@@ -14,8 +14,8 @@ Inclui 10 presets prontos: Vocal Ouro, Spot, Podcast, Audiobook, Narração, Var
         <changelog><![CDATA[
 v2.0 - Primeiro lançamento comercial via ReaPack.
         ]]></changelog>
-        <source file="WallaceMix_VozTurbinada.jsfx">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/WallaceMix_VozTurbinada.jsfx</source>
-        <source file="WallaceMix_VozTurbinada.jsfx.rpl" type="data" main="false">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/WallaceMix_VozTurbinada.jsfx.rpl</source>
+        <source file="WallaceMix_VozTurbinada.jsfx">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/JSFX/WallaceMix_VozTurbinada.jsfx</source>
+        <source file="WallaceMix_VozTurbinada.jsfx.rpl" type="data" main="false">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/JSFX/WallaceMix_VozTurbinada.jsfx.rpl</source>
       </version>
     </reapack>
 
@@ -30,8 +30,8 @@ Inclui 8 presets prontos: Carro de Som (-9 LUFS), Podcast (-16 LUFS), Rádio (-1
         <changelog><![CDATA[
 v1.0 - Primeiro lançamento comercial via ReaPack.
         ]]></changelog>
-        <source file="Wallacemix_Master_Processor.jsfx">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/Wallacemix_Master_Processor.jsfx</source>
-        <source file="Wallacemix_Master_Processor.jsfx.rpl" type="data" main="false">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/Wallacemix_Master_Processor.jsfx.rpl</source>
+        <source file="Wallacemix_Master_Processor.jsfx">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/JSFX/Wallacemix_Master_Processor.jsfx</source>
+        <source file="Wallacemix_Master_Processor.jsfx.rpl" type="data" main="false">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/JSFX/Wallacemix_Master_Processor.jsfx.rpl</source>
       </version>
     </reapack>
 
