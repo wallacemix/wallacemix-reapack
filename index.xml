@@ -39,7 +39,7 @@ v1.0 - Primeiro lançamento comercial via ReaPack.
 
   <category name="WallaceMix Plugins">
 
-    <reapack name="CARRO_DE_SOM_-_VOZ_MASTER.rpp" type="projecttpl" desc="Template Pronto - Carro de Som (Voz Master)">
+    <reapack name="CARRO_DE_SOM_VOZ_MASTER.rpp" type="projecttpl" desc="Template Pronto - Carro de Som (Voz Master)">
       <metadata>
         <description><![CDATA[
 Template de projeto REAPER pronto pra spot de carro de som: track de Voz com VozTurbinada Pro, track de Música com ducking (sidechain via ReaComp), track de Efeitos Sonoros e Master com Wallacemix Master Processor + ReaLimit.
@@ -49,11 +49,11 @@ Template de projeto REAPER pronto pra spot de carro de som: track de Voz com Voz
         <changelog><![CDATA[
 v1.0 - Primeiro lançamento comercial via ReaPack.
         ]]></changelog>
-        <source file="CARRO_DE_SOM_-_VOZ_MASTER.rpp">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/ProjectTemplates/CARRO_DE_SOM_-_VOZ_MASTER.rpp</source>
+        <source file="CARRO_DE_SOM_VOZ_MASTER.rpp">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/ProjectTemplates/CARRO_DE_SOM_VOZ_MASTER.rpp</source>
       </version>
     </reapack>
 
-    <reapack name="EVENTO_MULTIFAIXA_-_VOZ_MASTER.rpp" type="projecttpl" desc="Template Pronto - Evento Multifaixa (Voz Master)">
+    <reapack name="EVENTO_MULTIFAIXA_VOZ_MASTER.rpp" type="projecttpl" desc="Template Pronto - Evento Multifaixa (Voz Master)">
       <metadata>
         <description><![CDATA[
 Template de projeto REAPER pronto pra evento com múltiplos locutores: 3 tracks de Voz com VozTurbinada Pro, track de Música com ducking (sidechain via ReaComp) e Master com Wallacemix Master Processor + ReaLimit.
@@ -63,7 +63,7 @@ Template de projeto REAPER pronto pra evento com múltiplos locutores: 3 tracks 
         <changelog><![CDATA[
 v1.0 - Primeiro lançamento comercial via ReaPack.
         ]]></changelog>
-        <source file="EVENTO_MULTIFAIXA_-_VOZ_MASTER.rpp">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/ProjectTemplates/EVENTO_MULTIFAIXA_-_VOZ_MASTER.rpp</source>
+        <source file="EVENTO_MULTIFAIXA_-_VOZ_MASTER.rpp">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/ProjectTemplates/EVENTO_MULTIFAIXA_VOZ_MASTER.rpp</source>
       </version>
     </reapack>
 
