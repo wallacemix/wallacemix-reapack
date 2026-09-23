@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<index version="1" name="Wallacemix">
+  <category name="WallaceMix Plugins/JSFX">
+
+    <reapack name="WallaceMix_VozTurbinada.jsfx" type="effect" desc="VozTurbinada Pro - Processador de Voz Profissional">
+      <metadata>
+        <description><![CDATA[
+Processador de voz completo pra locução, podcast, spot de carro de som, eventos e rádio.
+EQ vocal interativo, de-esser duplo, compressor RMS, harmonic enhancer, vocal plate reverb e brickwall limiter.
+Inclui 10 presets prontos: Vocal Ouro, Spot, Podcast, Audiobook, Narração, Varejo Impacto, FifineK688, Fernando - Varejo, Mário - Social Media, Diego - Confident Announcer.
+        ]]></description>
+      </metadata>
+      <version name="2.0" author="Wallace Fernandes">
+        <changelog><![CDATA[
+v2.0 - Primeiro lançamento comercial via ReaPack.
+        ]]></changelog>
+        <source file="WallaceMix_VozTurbinada.jsfx">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/WallaceMix_VozTurbinada.jsfx</source>
+        <source file="WallaceMix_VozTurbinada.jsfx.rpl" type="data" main="false">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/WallaceMix_VozTurbinada.jsfx.rpl</source>
+      </version>
+    </reapack>
+
+    <reapack name="Wallacemix_Master_Processor.jsfx" type="effect" desc="Master Processor - Glue Comp / Tilt EQ / LUFS Trim">
+      <metadata>
+        <description><![CDATA[
+Processador de master track com glue compression sutil, tilt EQ de assinatura sonora, controle de largura estéreo M/S e trim de LUFS-alvo por plataforma.
+Inclui 8 presets prontos: Carro de Som (-9 LUFS), Podcast (-16 LUFS), Rádio (-16 LUFS), YouTube, FifineK688 (LUFS Bypass), Fernando Varejo, Social Media, Diego - Confident Announcer.
+        ]]></description>
+      </metadata>
+      <version name="1.0" author="Wallace Fernandes">
+        <changelog><![CDATA[
+v1.0 - Primeiro lançamento comercial via ReaPack.
+        ]]></changelog>
+        <source file="Wallacemix_Master_Processor.jsfx">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/Wallacemix_Master_Processor.jsfx</source>
+        <source file="Wallacemix_Master_Processor.jsfx.rpl" type="data" main="false">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/main/JSFX/Wallacemix_Master_Processor.jsfx.rpl</source>
+      </version>
+    </reapack>
+
+  </category>
+</index>
