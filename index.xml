@@ -63,7 +63,7 @@ Template de projeto REAPER pronto pra evento com múltiplos locutores: 3 tracks 
         <changelog><![CDATA[
 v1.0 - Primeiro lançamento comercial via ReaPack.
         ]]></changelog>
-        <source file="EVENTO_MULTIFAIXA_-_VOZ_MASTER.rpp">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/ProjectTemplates/EVENTO_MULTIFAIXA_VOZ_MASTER.rpp</source>
+        <source file="EVENTO_MULTIFAIXA_VOZ_MASTER.rpp">https://raw.githubusercontent.com/wallacemix/wallacemix-reapack/refs/heads/main/ProjectTemplates/EVENTO_MULTIFAIXA_VOZ_MASTER.rpp</source>
       </version>
     </reapack>
 
