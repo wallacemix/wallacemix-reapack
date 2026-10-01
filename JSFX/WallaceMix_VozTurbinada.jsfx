@@ -1,8 +1,8 @@
-desc:Wallacemix - VozTurbinada v2.0 (Voice Processor)
+desc:Wallacemix - VozTurbinada v3.0 (Voice Processor)
 // Copyright (c) 2026 Wallace Fernandes //
 // MIT License - see LICENSE
 // ============================================================
-// Wallacemix VozTurbinada Pro v2.0 - Processador de Voz Profissional
+// Wallacemix VozTurbinada Pro v3.0 - Processador de Voz Profissional (Dynamic EQ)
 // Autor: Wallace Fernandes
 // ============================================================
 
@@ -33,6 +33,10 @@ slider24:7.5<0,100,1>-Reverb Damping (%)
 slider25:-0.3<-12,0,0.1>-Brickwall Ceiling (dB)
 slider26:2.4<-6,6,0.1>-Master Output Gain (dB)
 slider27:-50<-80,-20,1>-Voice Gate Thresh (dB)
+slider28:-30<-60,0,0.5>-Anti-Lata Dyn Thresh (dB)
+slider29:0<-12,12,0.1>-Anti-Lata Dyn Range (dB)
+slider30:-30<-60,0,0.5>-Presenca Dyn Thresh (dB)
+slider31:0<-12,12,0.1>-Presenca Dyn Range (dB)
 
 @init
 ext_noinit = 1;
@@ -64,6 +68,14 @@ REV_APL2   = 17300; REV_APL2_LEN = 341;
 REV_APR1   = 17700; REV_APR1_LEN = 243;
 REV_APR2   = 18000; REV_APR2_LEN = 367;
 
+// Histórico do VU para o waveform animado (não interfere no áudio)
+WAVE_LEN = 60;
+WAVE_IN  = 20000;
+WAVE_OUT = 20100;
+wave_widx = 0;
+wave_ctr = 0;
+wave_capture_interval = max(1, floor(srate / 45));
+
 c_l1=0; c_l2=0; c_l3=0; c_l4=0;
 c_r1=0; c_r2=0; c_r3=0; c_r4=0;
 ap_l1=0; ap_l2=0; ap_l3=0; ap_l4=0;
@@ -90,6 +102,8 @@ local(base) (
   base[20] = slider20; base[21] = slider21; base[22] = slider22;
   base[23] = slider23; base[24] = slider24; base[25] = slider25;
   base[26] = slider26; base[27] = slider27;
+  base[28] = slider28; base[29] = slider29;
+  base[30] = slider30; base[31] = slider31;
 );
 
 function load_from_ab(slot_idx)
@@ -104,6 +118,8 @@ local(base) (
   slider20 = base[20]; slider21 = base[21]; slider22 = base[22];
   slider23 = base[23]; slider24 = base[24]; slider25 = base[25];
   slider26 = base[26]; slider27 = base[27];
+  slider28 = base[28]; slider29 = base[29];
+  slider30 = base[30]; slider31 = base[31];
 );
 
 function amp_to_db(amp) (
@@ -167,14 +183,25 @@ function update_dsp_coefficients() (
   biquad_peak(f_warm, slider6, 1.0, eq_warm_b0, eq_warm_b1, eq_warm_b2, eq_warm_a1, eq_warm_a2);
   biquad_peak(f_pres, slider7, 1.2, eq_pres_b0, eq_pres_b1, eq_pres_b2, eq_pres_a1, eq_pres_a2);
   biquad_peak(f_air, slider8, 0.75, eq_air_b0, eq_air_b1, eq_air_b2, eq_air_a1, eq_air_a2);
+  dq1_amt_last = -1;
+  dq2_amt_last = -1;
 
   biquad_bp(slider9, 2.2, ds1_b0, ds1_b1, ds1_b2, ds1_a1, ds1_a2);
   biquad_bp(slider12, 2.5, ds2_b0, ds2_b1, ds2_b2, ds2_a1, ds2_a2);
+
+  // Dynamic EQ: detectores passa-banda (mesmo Q dos peaks de Anti-Lata e Presenca)
+  biquad_bp(f_lata, 1.4, dq1_b0, dq1_b1, dq1_b2, dq1_a1, dq1_a2);
+  biquad_bp(f_pres, 1.2, dq2_b0, dq2_b1, dq2_b2, dq2_a1, dq2_a2);
 
   ds1_att = 1 - exp(-1 / (2.0 * 0.001 * srate));
   ds1_rel = 1 - exp(-1 / (60.0 * 0.001 * srate));
   ds2_att = 1 - exp(-1 / (1.5 * 0.001 * srate));
   ds2_rel = 1 - exp(-1 / (45.0 * 0.001 * srate));
+
+  dq1_att = 1 - exp(-1 / (10.0 * 0.001 * srate));
+  dq1_rel = 1 - exp(-1 / (120.0 * 0.001 * srate));
+  dq2_att = 1 - exp(-1 / (5.0 * 0.001 * srate));
+  dq2_rel = 1 - exp(-1 / (80.0 * 0.001 * srate));
 
   comp_att = 1 - exp(-1 / (max(0.1, slider17) * 0.001 * srate));
   comp_rel = 1 - exp(-1 / (max(1, slider18) * 0.001 * srate));
@@ -197,6 +224,28 @@ function update_dsp_coefficients() (
   rev_wet = (slider22 * 0.01) * 0.35;
 );
 
+// Dynamic EQ: recalcula so os peaks de Anti-Lata e Presenca (nao toca em gate/limiter)
+function update_dyn_eq()
+local(db, amt) (
+  // Anti-Lata
+  db = pow_to_db(dq1_env);
+  amt = slider29 == 0 ? 0 : max(0, min(1, (db - slider28) * 0.1666667));
+  dq1_amt_cur = amt;
+  amt != dq1_amt_last ? (
+    dq1_amt_last = amt;
+    biquad_peak(f_lata, max(-18, min(18, slider5 + slider29 * amt)), 1.4, eq_box_b0, eq_box_b1, eq_box_b2, eq_box_a1, eq_box_a2);
+  );
+
+  // Presenca
+  db = pow_to_db(dq2_env);
+  amt = slider31 == 0 ? 0 : max(0, min(1, (db - slider30) * 0.1666667));
+  dq2_amt_cur = amt;
+  amt != dq2_amt_last ? (
+    dq2_amt_last = amt;
+    biquad_peak(f_pres, max(-18, min(18, slider7 + slider31 * amt)), 1.2, eq_pres_b0, eq_pres_b1, eq_pres_b2, eq_pres_a1, eq_pres_a2);
+  );
+);
+
 // Reset de estado dos filtros
 hp_xl1=0; hp_xl2=0; hp_yl1=0; hp_yl2=0; hp_xr1=0; hp_xr2=0; hp_yr1=0; hp_yr2=0;
 b_xl1=0;  b_xl2=0;  b_yl1=0;  b_yl2=0;  b_xr1=0;  b_xr2=0;  b_yr1=0;  b_yr2=0;
@@ -206,6 +255,9 @@ p_xl1=0;  p_xl2=0;  p_yl1=0;  p_yl2=0;  p_xr1=0;  p_xr2=0;  p_yr1=0;  p_yr2=0;
 a_xl1=0;  a_xl2=0;  a_yl1=0;  a_yl2=0;  a_xr1=0;  a_xr2=0;  a_yr1=0;  a_yr2=0;
 ds1_xl1=0;ds1_xl2=0;ds1_yl1=0;ds1_yl2=0;
 ds2_xl1=0;ds2_xl2=0;ds2_yl1=0;ds2_yl2=0;
+dq1_xl1=0;dq1_xl2=0;dq1_yl1=0;dq1_yl2=0;dq1_env=0;
+dq2_xl1=0;dq2_xl2=0;dq2_yl1=0;dq2_yl2=0;dq2_env=0;
+dq_ctr=0; dq1_amt_last=-1; dq2_amt_last=-1; dq1_amt_cur=0; dq2_amt_cur=0;
 in_peak=0; in_peak_hold=0; in_peak_hold_timer=0;
 out_peak_l=0; out_peak_r=0;
 ds1_gr=0; ds2_gr=0; comp_gr=0;
@@ -249,6 +301,13 @@ in_mono > in_peak_hold ? (
   hp1 = hp_b0*s1 + hp_b1*hp_xr1 + hp_b2*hp_xr2 - hp_a1*hp_yr1 - hp_a2*hp_yr2;
   hp_xr2 = hp_xr1; hp_xr1 = s1; hp_yr2 = hp_yr1; hp_yr1 = hp1; s1 = hp1;
 
+  // Detector Dynamic EQ - Anti-Lata (etapa 2: so mede, nao altera o audio)
+  dq_sc = (s0 + s1) * 0.5;
+  dq1_flt = dq1_b0*dq_sc + dq1_b1*dq1_xl1 + dq1_b2*dq1_xl2 - dq1_a1*dq1_yl1 - dq1_a2*dq1_yl2;
+  dq1_xl2 = dq1_xl1; dq1_xl1 = dq_sc; dq1_yl2 = dq1_yl1; dq1_yl1 = dq1_flt;
+  dq1_pwr = dq1_flt * dq1_flt * 0.510204;  // normaliza o ganho de pico do BP (1/1.4^2)
+  dq1_env += (dq1_pwr - dq1_env) * (dq1_pwr > dq1_env ? dq1_att : dq1_rel);
+
   // 3. Anti-Lata
   bx0 = eq_box_b0*s0 + eq_box_b1*bx_xl1 + eq_box_b2*bx_xl2 - eq_box_a1*bx_yl1 - eq_box_a2*bx_yl2;
   bx_xl2 = bx_xl1; bx_xl1 = s0; bx_yl2 = bx_yl1; bx_yl1 = bx0; s0 = bx0;
@@ -266,6 +325,19 @@ in_mono > in_peak_hold ? (
   w_xl2 = w_xl1; w_xl1 = s0; w_yl2 = w_yl1; w_yl1 = w0; s0 = w0;
   w1 = eq_warm_b0*s1 + eq_warm_b1*w_xr1 + eq_warm_b2*w_xr2 - eq_warm_a1*w_yr1 - eq_warm_a2*w_yr2;
   w_xr2 = w_xr1; w_xr1 = s1; w_yr2 = w_yr1; w_yr1 = w1; s1 = w1;
+
+  // Detector Dynamic EQ - Presenca (etapa 2: so mede, nao altera o audio)
+  dq_sc = (s0 + s1) * 0.5;
+  dq2_flt = dq2_b0*dq_sc + dq2_b1*dq2_xl1 + dq2_b2*dq2_xl2 - dq2_a1*dq2_yl1 - dq2_a2*dq2_yl2;
+  dq2_xl2 = dq2_xl1; dq2_xl1 = dq_sc; dq2_yl2 = dq2_yl1; dq2_yl1 = dq2_flt;
+  dq2_pwr = dq2_flt * dq2_flt * 0.694444;  // normaliza o ganho de pico do BP (1/1.2^2)
+    dq2_env += (dq2_pwr - dq2_env) * (dq2_pwr > dq2_env ? dq2_att : dq2_rel);
+
+  dq_ctr += 1;
+  dq_ctr >= 32 ? (
+    dq_ctr = 0;
+    update_dyn_eq();
+  );
 
   // 6. Presença
   p0 = eq_pres_b0*s0 + eq_pres_b1*p_xl1 + eq_pres_b2*p_xl2 - eq_pres_a1*p_yl1 - eq_pres_a2*p_yl2;
@@ -398,6 +470,15 @@ spl1 = s1;
 out_peak_l = max(out_peak_l * 0.9995, abs(s0));
 out_peak_r = max(out_peak_r * 0.9995, abs(s1));
 
+// Captura periódica para o waveform (só leitura de in_peak/out_peak, zero custo de DSP extra)
+wave_ctr += 1;
+wave_ctr >= wave_capture_interval ? (
+  wave_ctr = 0;
+  WAVE_IN[wave_widx] = in_peak;
+  WAVE_OUT[wave_widx] = max(out_peak_l, out_peak_r);
+  wave_widx = (wave_widx + 1) % WAVE_LEN;
+);
+
 @gfx 900 600
 
 function set_hex(hex) (
@@ -441,7 +522,9 @@ function get_param(id) (
   id == 18 ? slider18 : id == 19 ? slider19 : id == 20 ? slider20 :
   id == 21 ? slider21 : id == 22 ? slider22 : id == 23 ? slider23 :
   id == 24 ? slider24 : id == 25 ? slider25 : id == 26 ? slider26 :
-  id == 27 ? slider27 : 0;
+  id == 27 ? slider27 :
+  id == 28 ? slider28 : id == 29 ? slider29 :
+  id == 30 ? slider30 : id == 31 ? slider31 : 0;
 );
 
 function set_param(id, val) (
@@ -453,7 +536,9 @@ function set_param(id, val) (
   id == 18 ? slider18 = val : id == 19 ? slider19 = val : id == 20 ? slider20 = val :
   id == 21 ? slider21 = val : id == 22 ? slider22 = val : id == 23 ? slider23 = val :
   id == 24 ? slider24 = val : id == 25 ? slider25 = val : id == 26 ? slider26 = val :
-  id == 27 ? slider27 = val;
+  id == 27 ? slider27 = val :
+  id == 28 ? slider28 = val : id == 29 ? slider29 = val :
+  id == 30 ? slider30 = val : id == 31 ? slider31 = val;
 );
 
 function gui_slider_v(id, x, y, w, h, min_v, max_v, default_v, label, unit, color)
@@ -462,7 +547,15 @@ local(val, norm, slider_y, mouse_in, track_y, track_h) (
   track_y = y + 17;
   track_h = h - 35;
   norm = (val - min_v) / (max_v - min_v);
-  mouse_in = (mouse_x >= x && mouse_x <= x + w && mouse_y >= y && mouse_y <= y + h);
+    mouse_in = (mouse_x >= x && mouse_x <= x + w && mouse_y >= y && mouse_y <= y + h);
+
+  id >= 28 && mouse_in && mouse_wheel != 0 ? (
+    val = max(min_v, min(max_v, val + (mouse_wheel > 0 ? 1 : -1) * ((id == 29 || id == 31) ? 0.1 : 0.5)));
+    set_param(id, val);
+    update_dsp_coefficients();
+    norm = (val - min_v) / (max_v - min_v);
+    mouse_wheel = 0;
+  );
 
   (mouse_cap & 1) ? (
     active_drag_id == -1 && mouse_in ? active_drag_id = id;
@@ -531,6 +624,7 @@ gfx_drawstr(slider1 ? "DESLIGADO" : "LIGADO");
 
 // Dry/Wet
 set_hex_a(0xffffff, 1);
+draw_rect_fill(312, 9, 1, 24, 0x333333);
 gfx_x = 425; gfx_y = 15; gfx_drawstr("MIX:");
 draw_rect_fill(460, 18, 80, 7, 0x242424);
 draw_rect_fill(460, 18, slider2 * 0.8, 7, 0x00d4ff);
@@ -556,6 +650,7 @@ set_hex_a(0xffffff, 1);
 gfx_x = 604; gfx_y = 15; gfx_printf("A / B: %s", ab_state ? "B" : "A");
 
 // Reset
+draw_rect_fill(665, 9, 1, 24, 0x333333);
 reset_in = (mouse_x >= 670 && mouse_x <= 735 && mouse_y >= 9 && mouse_y <= 33);
 reset_in && mouse_cap == 1 && !btn_latch ? (
   slider3=80.5; slider4=-1.8; slider5=-2.5; slider6=1.8; slider7=9.0; slider8=8.0;
@@ -563,6 +658,7 @@ reset_in && mouse_cap == 1 && !btn_latch ? (
   slider15=-24.3; slider16=2.5; slider17=5.5; slider18=110; slider19=12.0;
   slider20=25; slider21=50; slider22=17.5; slider23=10; slider24=7.5;
   slider25=-0.3; slider26=2.4; slider27=-50; slider2=100;
+  slider28=-30; slider29=0; slider30=-30; slider31=0;
   f_corpo = 110; f_lata = 500; f_warm = 900; f_pres = 3200; f_air = 11000;
   update_dsp_coefficients();
   btn_latch = 1;
@@ -585,7 +681,7 @@ mouse_cap == 0 ? btn_latch = 0;
 // ----------------------------------------------------
 draw_section_panel(15, 48, 85, 165, "INPUT");
 in_db = amp_to_db(in_peak);
-in_norm = min(1, max(0, (in_db + 40) / 40));
+in_norm = min(1, max(0, (in_db + 40) / 40)) * !slider1;
 draw_rect_fill(28, 73, 20, 115, 0x111111);
 draw_rect_border(28, 73, 20, 115, 0x333333);
 meter_fill_h = in_norm * 113;
@@ -593,11 +689,28 @@ meter_fill_h > 0 ? draw_rect_fill(30, 187 - min(meter_fill_h, 56), 16, min(meter
 meter_fill_h > 56 ? draw_rect_fill(30, 187 - min(meter_fill_h, 95), 16, min(meter_fill_h - 56, 39), 0xffcc00);
 meter_fill_h > 95 ? draw_rect_fill(30, 187 - meter_fill_h, 16, meter_fill_h - 95, 0xff3366);
 
-hold_db = amp_to_db(in_peak_hold);
+hold_db = slider1 ? -100 : amp_to_db(in_peak_hold);
 hold_y = 187 - min(113, max(0, (hold_db + 40)/40 * 113));
 draw_rect_fill(28, hold_y - 1, 20, 2, 0xffffff);
 set_hex_a(0xffffff, 1);
 gfx_x = 22; gfx_y = 194; gfx_printf("%.1fdB", hold_db);
+
+// Waveform animado do histórico de INPUT (área livre ao lado do medidor)
+set_hex_a(0x00d4ff, 0.8);
+!slider1 ? (
+wave_i = 0;
+wave_prev_x = 0; wave_prev_y = 0;
+while(wave_i < WAVE_LEN) (
+  wave_read_idx = (wave_widx + wave_i) % WAVE_LEN;
+  wave_db = amp_to_db(WAVE_IN[wave_read_idx]);
+  wave_norm = min(1, max(0, (wave_db + 40) / 40));
+  wave_x = 52 + (wave_i / (WAVE_LEN - 1)) * 43;
+  wave_y = 188 - wave_norm * 113;
+  wave_i > 0 ? gfx_line(wave_prev_x, wave_prev_y, wave_x, wave_y);
+  wave_prev_x = wave_x; wave_prev_y = wave_y;
+  wave_i += 1;
+);
+);
 
 eq_graph_x = 108; eq_graph_y = 48; eq_graph_w = 684; eq_graph_h = 165;
 draw_rect_fill(eq_graph_x, eq_graph_y, eq_graph_w, eq_graph_h, 0x151515);
@@ -696,8 +809,8 @@ handle_eq_node(8, f_air,   slider8, 0x00ffff, "AIR");
 
 // Output Meter Stereo
 draw_section_panel(800, 48, 85, 165, "OUTPUT");
-out_l_db = amp_to_db(out_peak_l);
-out_r_db = amp_to_db(out_peak_r);
+out_l_db = slider1 ? -100 : amp_to_db(out_peak_l);
+out_r_db = slider1 ? -100 : amp_to_db(out_peak_r);
 out_l_h = min(113, max(0, (out_l_db + 40)/40 * 113));
 out_r_h = min(113, max(0, (out_r_db + 40)/40 * 113));
 
@@ -705,6 +818,23 @@ draw_rect_fill(812, 73, 11, 115, 0x111111);
 draw_rect_fill(827, 73, 11, 115, 0x111111);
 draw_rect_fill(813, 187 - out_l_h, 9, out_l_h, out_l_db > slider25 ? 0xff3366 : 0x00d4ff);
 draw_rect_fill(828, 187 - out_r_h, 9, out_r_h, out_r_db > slider25 ? 0xff3366 : 0x00d4ff);
+
+// Waveform animado do histórico de OUTPUT (desenhado antes do rótulo, pra não tampar)
+set_hex_a(0x00d4ff, 0.7);
+!slider1 ? (
+wave_o = 0;
+wave_o_prev_x = 0; wave_o_prev_y = 0;
+while(wave_o < WAVE_LEN) (
+  wave_o_read_idx = (wave_widx + wave_o) % WAVE_LEN;
+  wave_o_db = amp_to_db(WAVE_OUT[wave_o_read_idx]);
+  wave_o_norm = min(1, max(0, (wave_o_db + 40) / 40));
+  wave_o_x = 845 + (wave_o / (WAVE_LEN - 1)) * 38;
+  wave_o_y = 188 - wave_o_norm * 113;
+  wave_o > 0 ? gfx_line(wave_o_prev_x, wave_o_prev_y, wave_o_x, wave_o_y);
+  wave_o_prev_x = wave_o_x; wave_o_prev_y = wave_o_y;
+    wave_o += 1;
+);
+);
 
 lufs_ref_y = 187 - ((-14 + 40)/40 * 113);
 draw_rect_fill(809, lufs_ref_y, 34, 2, 0xffaa00);
@@ -726,13 +856,33 @@ gui_slider_v(7,  310, 242, 60, 75, -12, 12, 4.5, "Presenca", "dB", 0x00d4ff);
 gui_slider_v(8,  380, 242, 60, 75, -12, 12, 3.5, "Air Sheen", "dB", 0x00ffff);
 gui_slider_v(27, 455, 242, 70, 75, -80, -20, -50, "Voice Gate", "dB", 0x00ff88);
 
-set_hex_a(0xffffff, 1);
-gfx_setfont(1, "Arial", 11, 0);
-gfx_x = 550; gfx_y = 248; gfx_drawstr("• Nós do gráfico: Clique e arraste para mudar Ganho e Frequência!");
+// Dynamic EQ (v3): Anti-Lata e Presenca
+draw_rect_fill(538, 244, 1, 78, 0x333333);
+draw_rect_fill(700, 244, 1, 78, 0x333333);
+
+gfx_setfont(1, "Arial", 13, 'B');
+set_hex_a(0xff8844, 1);
+gfx_x = 548; gfx_y = 223; gfx_drawstr("DYN LATA");
 set_hex_a(0x00d4ff, 1);
-gfx_x = 550; gfx_y = 268; gfx_drawstr("• Voice Gate silencia ruídos de ventilador, sala e respirações.");
-set_hex_a(0xaaaaaa, 1);
-gfx_x = 550; gfx_y = 288; gfx_drawstr("• Anti-Lata em 500Hz tira a sensação de caixa/eco do microfone.");
+gfx_x = 712; gfx_y = 223; gfx_drawstr("DYN PRES");
+
+// Ajuste de ganho aplicado neste instante (o "+ 0.0" evita mostrar -0.0)
+set_hex_a(0xffffff, 1);
+dq_show = slider29 * dq1_amt_cur; abs(dq_show) < 0.05 ? dq_show = 0;
+gfx_x = 618; gfx_y = 223; gfx_printf("%+.1fdB", dq_show);
+dq_show = slider31 * dq2_amt_cur; abs(dq_show) < 0.05 ? dq_show = 0;
+gfx_x = 782; gfx_y = 223; gfx_printf("%+.1fdB", dq_show);
+
+gui_slider_v(28, 548, 242, 65, 75, -60, 0, -30, "Thresh", "dB", 0xff8844);
+gui_slider_v(29, 623, 242, 65, 75, -12, 12, 0, "Range", "dB", 0xff8844);
+gui_slider_v(30, 712, 242, 65, 75, -60, 0, -30, "Thresh", "dB", 0x00d4ff);
+gui_slider_v(31, 787, 242, 65, 75, -12, 12, 0, "Range", "dB", 0x00d4ff);
+
+// Nivel medido pelo detector (referencia para posicionar o Thresh)
+gfx_setfont(1, "Arial", 12, 0);
+set_hex_a(0x999999, 1);
+gfx_x = 548; gfx_y = 316; gfx_printf("nível: %.1f dB", pow_to_db(dq1_env));
+gfx_x = 712; gfx_y = 316; gfx_printf("nível: %.1f dB", pow_to_db(dq2_env));
 
 // ----------------------------------------------------
 // SEÇÃO INFERIOR 1: DINÂMICA
@@ -743,7 +893,7 @@ gui_slider_v(10, 115, 358, 70, 72, -50, -10, -28, "Thresh", "dB", 0xbb00ff);
 gui_slider_v(11, 200, 358, 65, 72, 2, 10, 5, "Ratio", ":1", 0xbb00ff);
 draw_rect_fill(30, 437, 240, 9, 0x141414);
 draw_rect_border(30, 437, 240, 9, 0x333333);
-ds1_gr_w = min(240, max(0, (-ds1_gr / 15) * 240));
+ds1_gr_w = min(240, max(0, (-ds1_gr / 15) * 240)) * !slider1;
 draw_rect_fill(30, 437, ds1_gr_w, 9, 0xbb00ff);
 
 draw_section_panel(300, 336, 260, 118, "DE-ESSER 2 (ASPEREZA)");
@@ -752,7 +902,7 @@ gui_slider_v(13, 395, 358, 70, 72, -50, -10, -26, "Thresh", "dB", 0xd844ff);
 gui_slider_v(14, 475, 358, 65, 72, 0, 100, 60, "Mix", "%", 0xd844ff);
 draw_rect_fill(315, 437, 230, 9, 0x141414);
 draw_rect_border(315, 437, 230, 9, 0x333333);
-ds2_gr_w = min(230, max(0, (-ds2_gr / 15) * 230));
+ds2_gr_w = min(230, max(0, (-ds2_gr / 15) * 230)) * !slider1;
 draw_rect_fill(315, 437, ds2_gr_w, 9, 0xd844ff);
 
 draw_section_panel(570, 336, 315, 118, "COMPRESSOR DE PRESSÃO RMS");
@@ -763,7 +913,7 @@ gui_slider_v(18, 775, 358, 52, 72, 10, 500, 110, "Release", "ms", 0xffdd00);
 gui_slider_v(19, 839, 358, 46, 72, -5, 12, 5, "Makeup", "dB", 0xffdd00);
 draw_rect_fill(585, 437, 285, 9, 0x141414);
 draw_rect_border(585, 437, 285, 9, 0x333333);
-comp_gr_w = min(285, max(0, (-comp_gr / 20) * 285));
+comp_gr_w = min(285, max(0, (-comp_gr / 20) * 285)) * !slider1;
 draw_rect_fill(585, 437, comp_gr_w, 9, 0xffdd00);
 
 // ----------------------------------------------------
